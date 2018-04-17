@@ -45,6 +45,7 @@ func (ps *peerStorage) startDestroyDataJob(cellID uint64, start, end []byte) err
 	return err
 }
 
+// TODO ???
 func (pr *PeerReplicate) startRegistrationJob() {
 	delegate := &applyDelegate{
 		store:            pr.store,

@@ -444,7 +444,7 @@ func (pr *PeerReplicate) handleRequest(items []interface{}) {
 1.持久化非空的 ss 以及 hs。
 2.如果是 leader，首先发送 messages。
 3.如果 snapshot 不为空，保存 snapshot 到 Storage，同时将 snapshot 里面的数据异步应用到 State Machine
-  （这里虽然也可以同步 apply，但 snapshot 通常比较大，同步会 block 线程）。
+	（这里虽然也可以同步 apply，但 snapshot 通常比较大，同步会 block 线程）。
 4.将 entries 保存到 Storage 里面。
 5.如果是 follower，发送 messages。
 6.将 committed_entries apply 到 State Machine。
@@ -547,7 +547,7 @@ func (pr *PeerReplicate) handleRaftReadyAppend(ctx *readyContext, rd *raft.Ready
 	// The leader can write to disk and replicate to the followers concurrently
 	// For more details, check raft thesis 10.2.1.
 	if pr.isLeader() {
-		pr.send(rd.Messages)
+		pr.send(rd.Messages) // 需要发送的raft message
 	}
 
 	ctx.wb = pr.store.engine.NewWriteBatch()
@@ -577,7 +577,7 @@ func (pr *PeerReplicate) handleRaftReadyApply(ctx *readyContext, rd *raft.Ready)
 		// When apply snapshot, there is no log applied and not compacted yet.
 		pr.raftLogSizeHint = 0
 	}
-
+	// 实际应用快照到系统
 	result := pr.doApplySnap(ctx, rd)
 	if !pr.isLeader() {
 		pr.send(rd.Messages)
@@ -631,6 +631,7 @@ func (pr *PeerReplicate) handleAppendEntries(ctx *readyContext, rd *raft.Ready) 
 	}
 }
 
+// 更新和保存PeerReplicate的状态
 func (pr *PeerReplicate) handleSaveRaftState(ctx *readyContext) {
 	tmp := ctx.raftState
 	origin := pr.ps.raftState
@@ -988,6 +989,8 @@ func (pr *PeerReplicate) sendRaftMsg(msg raftpb.Message) error {
 		return fmt.Errorf("can not found peer<%d>", msg.To)
 	}
 
+
+	// TODO ???
 	// There could be two cases:
 	// 1. Target peer already exists but has not established communication with leader yet
 	// 2. Target peer is added newly due to member change or region split, but it's not

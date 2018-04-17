@@ -62,7 +62,7 @@ type peerStorage struct {
 
 	lastTerm         uint64
 	appliedIndexTerm uint64
-	lastReadyIndex   uint64
+	lastReadyIndex   uint64  // TODO lastReadyIndex vs lastAppliedIndex
 	lastCompactIndex uint64
 	raftState        mraft.RaftLocalState  // TODO 应该从raft的WAL和snapshot中恢复吧 ???
 	applyState       mraft.RaftApplyState

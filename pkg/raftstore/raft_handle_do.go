@@ -105,6 +105,7 @@ func (q *readIndexQueue) size() int {
 }
 
 // ====================== raft ready handle methods
+// TODO snapshot中的数据应用到系统中在 handleRaftReadyApply方法中
 func (ps *peerStorage) doAppendSnapshot(ctx *readyContext, snap raftpb.Snapshot) error {
 	log.Infof("raftstore[cell-%d]: begin to apply snapshot", ps.getCell().ID)
 
@@ -125,6 +126,7 @@ func (ps *peerStorage) doAppendSnapshot(ctx *readyContext, snap raftpb.Snapshot)
 		}
 	}
 
+	// 写入新的peerState到底层存储
 	err := ps.updatePeerState(ctx.snap.Header.Cell, mraft.Applying, ctx.wb)
 	if err != nil {
 		log.Errorf("raftstore[cell-%d]: write peer state failed, errors:\n %+v",
@@ -471,6 +473,7 @@ func (s *Store) doApplyConfChange(cellID uint64, cp *changePeer) {
 	}
 }
 
+// TODO
 func (s *Store) doApplySplit(cellID uint64, result *splitResult) {
 	pr := s.replicatesMap.get(cellID)
 	if nil == pr {
@@ -523,7 +526,7 @@ func (s *Store) doApplySplit(cellID uint64, result *splitResult) {
 	s.replicatesMap.put(newPR.cellID, newPR)
 
 	// If this peer is the leader of the cell before split, it's intuitional for
-	// it to become the leader of new split cell.
+	// it to become the leader of new split cell.d
 	// The ticks are accelerated here, so that the peer for the new split cell
 	// comes to campaign earlier than the other follower peers. And then it's more
 	// likely for this peer to become the leader of the new split cell.
@@ -552,6 +555,7 @@ func (s *Store) doApplySplit(cellID uint64, result *splitResult) {
 				err)
 		}
 	} else {
+		// TODO ???
 		if vote, ok := pr.store.removeDroppedVoteMsg(newPR.cellID); ok {
 			newPR.step(vote)
 		}
@@ -592,6 +596,7 @@ func (s *Store) doApplyRaftLogGC(cellID uint64, result *raftGCResult) {
 	}
 }
 
+// TODO
 func (pr *PeerReplicate) doApplyReads(rd *raft.Ready) {
 	if pr.readyToHandleRead() {
 		for _, state := range rd.ReadStates {
