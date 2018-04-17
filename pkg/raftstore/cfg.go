@@ -49,7 +49,7 @@ type Cfg struct {
 	BatchSizeSent             uint64
 	WorkerCountSent           uint64
 	WorkerCountSentSnap       uint64
-	WorkerCountApply          uint64
+	WorkerCountApply          uint64  // 执行Apply操作的worker数量
 	EnableSyncRaftLog         bool
 	EnableMetricsRequest      bool
 }

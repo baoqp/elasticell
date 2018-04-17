@@ -29,7 +29,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-// Node node
+// Node node 物理节点
 type Node struct {
 	sync.RWMutex
 
@@ -79,6 +79,7 @@ func (n *Node) Start() *raftstore.Store {
 	n.storeMeta.ID = storeID
 
 	if !bootstrapped {
+		// 分配cell区间，使用range分片来做scale
 		cells := n.bootstrapCells()
 		n.bootstrapCluster(cells)
 	}

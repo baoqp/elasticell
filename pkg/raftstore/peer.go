@@ -40,6 +40,7 @@ const (
 	doCampaign
 )
 
+// 一个副本
 // PeerReplicate is the cell's peer replicate. Every cell replicate has a PeerReplicate.
 type PeerReplicate struct {
 	cellID            uint64
@@ -69,7 +70,7 @@ type PeerReplicate struct {
 	nextDocID         uint64
 }
 
-func createPeerReplicate(store *Store, cell *metapb.Cell) (*PeerReplicate, error) {
+func  createPeerReplicate(store *Store, cell *metapb.Cell) (*PeerReplicate, error) {
 	peer := findPeer(cell, store.GetID())
 	if peer == nil {
 		return nil, fmt.Errorf("bootstrap: find no peer for store in cell. storeID=<%d> cell=<%+v>",
@@ -99,7 +100,7 @@ func doReplicate(store *Store, msg *mraft.RaftMessage, peerID uint64) (*PeerRepl
 	return newPeerReplicate(store, cell, peerID)
 }
 
-func newPeerReplicate(store *Store, cell *metapb.Cell, peerID uint64) (*PeerReplicate, error) {
+func  newPeerReplicate(store *Store, cell *metapb.Cell, peerID uint64) (*PeerReplicate, error) {
 	if peerID == pd.ZeroID {
 		return nil, fmt.Errorf("invalid peer id: %d", peerID)
 	}
@@ -148,6 +149,7 @@ func newPeerReplicate(store *Store, cell *metapb.Cell, peerID uint64) (*PeerRepl
 			pr.cellID)
 	}
 
+	// 启动服务线程
 	id, _ := store.runner.RunCancelableTask(pr.readyToServeRaft)
 	pr.cancelTaskIds = append(pr.cancelTaskIds, id)
 
@@ -177,6 +179,7 @@ func (pr *PeerReplicate) onAdminRequest(adminReq *raftcmdpb.AdminRequest) {
 	commandCounterVec.WithLabelValues(raftcmdpb.CMDType_name[int32(adminReq.Type)]).Inc()
 }
 
+// 只是加入请求队列
 func (pr *PeerReplicate) onReq(req *raftcmdpb.Request, cb func(*raftcmdpb.RaftCMDResponse)) {
 	if globalCfg.EnableMetricsRequest {
 		now := time.Now().UnixNano()
@@ -254,6 +257,7 @@ func (pr *PeerReplicate) setLastHBJob(job *util.Job) {
 	pr.lastHBJob = job
 }
 
+// 向pd发送心跳，并附带消息
 func (pr *PeerReplicate) doHeartbeat() error {
 	req := new(pdpb.CellHeartbeatReq)
 	req.Cell = pr.getCell()
@@ -269,6 +273,7 @@ func (pr *PeerReplicate) doHeartbeat() error {
 		return err
 	}
 
+	// pd的回复信息可能会带有peer改变信息
 	if rsp.ChangePeer != nil {
 		log.Infof("heartbeat-cell[%d]: try to change peer, type=<%v> peer=<%+v>",
 			pr.cellID,
@@ -308,6 +313,7 @@ func (pr *PeerReplicate) checkPeers() {
 	}
 }
 
+// 获取已经宕机的peers
 func (pr *PeerReplicate) collectDownPeers(maxDuration time.Duration) []pdpb.PeerStats {
 	now := time.Now()
 	var downPeers []pdpb.PeerStats
@@ -330,6 +336,7 @@ func (pr *PeerReplicate) collectDownPeers(maxDuration time.Duration) []pdpb.Peer
 	return downPeers
 }
 
+// 获取日志落后leader比较远的peers
 func (pr *PeerReplicate) collectPendingPeers() []metapb.Peer {
 	var pendingPeers []metapb.Peer
 	status := pr.rn.Status()

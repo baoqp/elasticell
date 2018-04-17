@@ -70,6 +70,7 @@ func (pr *PeerReplicate) addEvent() (bool, error) {
 	return pr.events.Offer(emptyStruct)
 }
 
+// 主循环
 func (pr *PeerReplicate) readyToServeRaft(ctx context.Context) {
 	pr.onRaftTick(nil)
 	items := make([]interface{}, batch, batch)
@@ -120,6 +121,7 @@ func (pr *PeerReplicate) readyToServeRaft(ctx context.Context) {
 			return
 		}
 
+		//TODO 下面几个handle是有次序的么
 		pr.handleStep(items)
 		pr.handleTick(items)
 		pr.handleReport(items)
@@ -347,6 +349,7 @@ func (pr *PeerReplicate) handleStep(items []interface{}) {
 	}
 }
 
+// 报告Raft相关的异常情况
 func (pr *PeerReplicate) handleReport(items []interface{}) {
 	size := pr.reports.Len()
 	if size == 0 {
@@ -400,6 +403,7 @@ func (pr *PeerReplicate) handleApplyResult(items []interface{}) {
 	}
 }
 
+// 处理propose
 func (pr *PeerReplicate) handleRequest(items []interface{}) {
 	size := pr.requests.Len()
 	if size == 0 {
@@ -415,6 +419,7 @@ func (pr *PeerReplicate) handleRequest(items []interface{}) {
 		req := items[i].(*reqCtx)
 		pr.batch.push(req)
 	}
+
 
 	for {
 		if pr.batch.isEmpty() {
@@ -432,6 +437,19 @@ func (pr *PeerReplicate) handleRequest(items []interface{}) {
 	}
 }
 
+/*
+// https://github.com/pingcap/blog-cn/blob/master/the-design-and-implementation-of-multi-raft.md
+
+当外部发现一个 RawNode 已经 ready 之后，得到 Ready，处理如下：
+1.持久化非空的 ss 以及 hs。
+2.如果是 leader，首先发送 messages。
+3.如果 snapshot 不为空，保存 snapshot 到 Storage，同时将 snapshot 里面的数据异步应用到 State Machine
+  （这里虽然也可以同步 apply，但 snapshot 通常比较大，同步会 block 线程）。
+4.将 entries 保存到 Storage 里面。
+5.如果是 follower，发送 messages。
+6.将 committed_entries apply 到 State Machine。
+7.调用 advance 告知 Raft 已经处理完 ready。
+ */
 func (pr *PeerReplicate) handleReady() {
 	// If we continue to handle all the messages, it may cause too many messages because
 	// leader will send all the remaining messages to this follower, which can lead
@@ -511,6 +529,7 @@ func (pr *PeerReplicate) doPollApply(result *asyncApplyResult) {
 		pr.store.doPostApplyResult(result)
 	}
 }
+
 
 func (pr *PeerReplicate) handleRaftReadyAppend(ctx *readyContext, rd *raft.Ready) {
 	start := time.Now()
@@ -645,6 +664,7 @@ func (pr *PeerReplicate) handleSaveApplyState(ctx *readyContext) {
 	}
 }
 
+// 检查是否可以进行proposal
 func (pr *PeerReplicate) checkProposal(c *cmd) bool {
 	// we handle all read, write and admin cmd here
 	if c.req.Header == nil || c.req.Header.UUID == nil {
@@ -700,7 +720,7 @@ func (pr *PeerReplicate) propose(c *cmd) {
 
 	doPropose := false
 	switch policy {
-	case readLocal:
+	case readLocal: // 对于在leader的读请求，无需进入raft流程。
 		pr.execReadLocal(c)
 	case readIndex:
 		pr.execReadIndex(c)
@@ -745,6 +765,8 @@ func (pr *PeerReplicate) proposeNormal(c *cmd) bool {
 		c.resp(errorOtherCMDResp(err))
 		return false
 	}
+
+	// TODO ???
 	idx2 := pr.nextProposalIndex()
 	if idx == idx2 {
 		c.respNotLeader(pr.cellID, pr.store.getPeer(pr.getLeaderPeerID()))

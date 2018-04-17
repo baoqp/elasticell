@@ -38,6 +38,7 @@ type applyMetrics struct {
 	admin raftAdminMetrics
 }
 
+// 封装异步Apply的结果
 type asyncApplyResult struct {
 	cellID           uint64
 	appliedIndexTerm uint64

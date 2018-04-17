@@ -374,6 +374,7 @@ func (pr *PeerReplicate) doAskSplit(cell metapb.Cell, peer metapb.Peer, splitKey
 	return nil
 }
 
+// apply结果后处理
 func (pr *PeerReplicate) doPostApply(result *asyncApplyResult) {
 	if pr.ps.isApplyingSnap() {
 		log.Fatalf("raftstore[cell-%d]: should not applying snapshot, when do post apply.",
@@ -401,6 +402,7 @@ func (pr *PeerReplicate) doPostApply(result *asyncApplyResult) {
 		pr.sizeDiffHint += result.metrics.sizeDiffHint
 	}
 
+	// TODO  pendingReads ???
 	readyCnt := int(pr.pendingReads.getReadyCnt())
 	if readyCnt > 0 && pr.readyToHandleRead() {
 		for index := 0; index < readyCnt; index++ {
@@ -411,6 +413,7 @@ func (pr *PeerReplicate) doPostApply(result *asyncApplyResult) {
 	}
 }
 
+// TODO handle adminType cmd
 func (s *Store) doPostApplyResult(result *asyncApplyResult) {
 	switch result.result.adminType {
 	case raftcmdpb.ChangePeer:

@@ -48,7 +48,7 @@ var (
 )
 
 const (
-	pending = iota
+	pending    = iota
 	running
 	cancelling
 	cancelled
@@ -64,7 +64,7 @@ type peerStorage struct {
 	appliedIndexTerm uint64
 	lastReadyIndex   uint64
 	lastCompactIndex uint64
-	raftState        mraft.RaftLocalState
+	raftState        mraft.RaftLocalState  // TODO 应该从raft的WAL和snapshot中恢复吧 ???
 	applyState       mraft.RaftApplyState
 
 	snapTriedCnt     int
@@ -75,6 +75,8 @@ type peerStorage struct {
 	pendingReads *readIndexQueue
 }
 
+// TODO 启动状态的设置和恢复 ???
+// TODO 从底层存储中恢复状态是否是正确的，比如raftState已经在更新但是在写入底层存储的时候宕机 ???
 func newPeerStorage(store *Store, cell metapb.Cell) (*peerStorage, error) {
 	s := new(peerStorage)
 	s.store = store
@@ -111,6 +113,7 @@ func newPeerStorage(store *Store, cell metapb.Cell) (*peerStorage, error) {
 	return s, nil
 }
 
+// 如果底层存储已经保存了之前的状态则用其初始化，否则初始化为最初状态
 func (ps *peerStorage) initRaftState() error {
 	v, err := ps.store.getMetaEngine().Get(getRaftStateKey(ps.getCell().ID))
 	if err != nil {
@@ -471,6 +474,7 @@ func (ps *peerStorage) updatePeerState(cell metapb.Cell, state mraft.PeerState, 
 
 	return ps.store.getMetaEngine().Set(getCellStateKey(cell.ID), data)
 }
+
 
 func (ps *peerStorage) writeInitialState(cellID uint64, wb storage.WriteBatch) error {
 	raftState := new(mraft.RaftLocalState)

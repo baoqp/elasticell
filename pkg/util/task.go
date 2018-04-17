@@ -197,7 +197,9 @@ func (job *Job) getState() JobState {
 	return s
 }
 
-// Runner TODO
+
+
+// Runner
 type Runner struct {
 	sync.RWMutex
 
@@ -243,8 +245,12 @@ func (s *Runner) IsNamedWorkerBusy(worker string) bool {
 	return s.getNamedQueue(worker).Len() > 0
 }
 
+
+//从队列中取出任务并在新的goroutine中执行
 func (s *Runner) startWorker(name string, q *Queue) (uint64, error) {
+
 	return s.RunCancelableTask(func(ctx context.Context) {
+
 		jobs := make([]interface{}, batch, batch)
 
 		for {
@@ -386,6 +392,8 @@ func (s *Runner) RunTask(task func()) error {
 	return nil
 }
 
+
+// 使用context.WithCancel的cancel函数来通知取消
 // StopCancelableTask stop cancelable spec task
 func (s *Runner) StopCancelableTask(id uint64) error {
 	s.Lock()

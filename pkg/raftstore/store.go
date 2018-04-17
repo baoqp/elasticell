@@ -64,26 +64,26 @@ type Store struct {
 	snapshotManager    SnapshotManager
 	pdClient           *pd.Client
 	keyConvertFun      func([]byte, func([]byte) metapb.Cell) metapb.Cell
-	replicatesMap      *cellPeersMap // cellid -> peer replicate
+	replicatesMap      *cellPeersMap // cellid -> peer replicate  一个store上有多个raft group的副本
 	keyRanges          *util.CellTree
 	peerCache          *peerCacheMap
-	delegates          *applyDelegateMap
+	delegates          *applyDelegateMap // TODO ???
 	pendingLock        sync.RWMutex
 	pendingSnapshots   map[uint64]mraft.SnapshotMessageHeader
 	trans              *transport
-	engine             storage.Driver
-	runner             *util.Runner
+	engine             storage.Driver // 存储引擎
+	runner             *util.Runner   // 执行具体的任务
 	redisReadHandles   map[raftcmdpb.CMDType]func(*raftcmdpb.Request) *raftcmdpb.Response
 	redisWriteHandles  map[raftcmdpb.CMDType]func(*applyContext, *raftcmdpb.Request) *raftcmdpb.Response
 	sendingSnapCount   uint32
 	reveivingSnapCount uint32
 	rwlock             sync.RWMutex
-	indices            map[string]*pdpb.IndexDef   //index name -> IndexDef
-	reExps             map[string]*regexp.Regexp   //index name -> Regexp
-	docProts           map[string]*cql.Document    //index name -> cql.Document
-	indexers           map[uint64]*indexer.Indexer // cell id -> Indexer
+	indices            map[string]*pdpb.IndexDef   // index name -> IndexDef TODO ???
+	reExps             map[string]*regexp.Regexp   // index name -> Regexp   TODO ???
+	docProts           map[string]*cql.Document    // index name -> cql.Document  TODO ???
+	indexers           map[uint64]*indexer.Indexer // cell id -> Indexer TODO ???
 	cellIDToStores     map[uint64][]uint64         // cell id -> non-leader store ids, fetched from PD
-	storeIDToCells     map[uint64][]uint64         // store id -> leader cell ids, fetched from PD
+	storeIDToCells     map[uint64][]uint64         // store id -> leader cell ids, fetched from PD TODO ???
 	syncEpoch          uint64
 	queryStates        map[string]*QueryState // query UUID -> query state
 	queryReqChan       chan *QueryRequestCb
@@ -183,6 +183,8 @@ func (s *Store) startCells() {
 
 	wb := s.engine.NewWriteBatch()
 
+	// 从底层储存中读取cells元数据并以此来启动
+	// 在create cell的时候会持久化cell信息
 	err := s.getMetaEngine().Scan(cellMetaMinKey, cellMetaMaxKey, func(key, value []byte) (bool, error) {
 		cellID, suffix, err := decodeCellMetaKey(key)
 		if err != nil {
@@ -254,7 +256,7 @@ func (s *Store) startCells() {
 }
 
 // Start returns the error when start store
-func (s *Store) Start() {
+func (s *Store)  Start() {
 	log.Infof("bootstrap: begin to start store %d", s.id)
 
 	go s.startTransfer()
@@ -293,6 +295,7 @@ func (s *Store) startTransfer() {
 	}
 }
 
+// 启动定时任务，向pd发送心跳
 func (s *Store) startStoreHeartbeatTask() {
 	s.runner.RunCancelableTask(func(ctx context.Context) {
 		ticker := time.NewTicker(globalCfg.DurationHeartbeatStore)
@@ -326,6 +329,7 @@ func (s *Store) startStoreHeartbeatTask() {
 	})
 }
 
+// 启动store中的各个cell向pd发送心跳信息
 func (s *Store) startCellHeartbeatTask() {
 	s.runner.RunCancelableTask(func(ctx context.Context) {
 		ticker := time.NewTicker(globalCfg.DurationHeartbeatCell)
@@ -343,6 +347,7 @@ func (s *Store) startCellHeartbeatTask() {
 	})
 }
 
+// 定时任务，给cell的action队列中添加checkCompact操作
 func (s *Store) startGCTask() {
 	s.runner.RunCancelableTask(func(ctx context.Context) {
 		ticker := time.NewTicker(globalCfg.DurationCompact)
@@ -377,6 +382,8 @@ func (s *Store) startCellReportTask() {
 	})
 }
 
+
+// 定时任务
 func (s *Store) startCellSplitCheckTask() {
 	s.runner.RunCancelableTask(func(ctx context.Context) {
 		ticker := time.NewTicker(globalCfg.DurationSplitCheck)
@@ -394,6 +401,7 @@ func (s *Store) startCellSplitCheckTask() {
 	})
 }
 
+// TODO ???
 func (s *Store) startServeIndexTask() {
 	s.runner.RunCancelableTask(func(ctx context.Context) {
 		s.readyToServeIndex(ctx)
@@ -476,7 +484,9 @@ func (s *Store) OnProxyReq(req *raftcmdpb.Request, cb func(*raftcmdpb.RaftCMDRes
 }
 
 // OnRedisCommand process redis command
-func (s *Store) OnRedisCommand(sessionID int64, cmdType raftcmdpb.CMDType, cmd redis.Command, cb func(*raftcmdpb.RaftCMDResponse)) ([]byte, error) {
+func (s *Store) OnRedisCommand(sessionID int64, cmdType raftcmdpb.CMDType, cmd redis.Command,
+	cb func(*raftcmdpb.RaftCMDResponse)) ([]byte, error) {
+
 	if log.DebugEnabled() {
 		log.Debugf("raftstore[store-%d]: received a redis command, cmd=<%s>", s.id, cmd.ToString())
 	}
@@ -1034,6 +1044,7 @@ func (s *Store) addNamedJobWithCB(desc, worker string, task func() error, cb fun
 	return s.runner.RunJobWithNamedWorkerWithCB(desc, worker, task, cb)
 }
 
+// 向pd发送携带统计信息的心跳信息
 func (s *Store) handleStoreHeartbeat() error {
 	stats, err := util.DiskStats(globalCfg.DataPath)
 	if err != nil {

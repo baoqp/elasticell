@@ -69,6 +69,8 @@ func (n *Node) checkStore() uint64 {
 	return st.StoreID
 }
 
+
+
 func (n *Node) bootstrapStore() uint64 {
 	storeID, err := n.getAllocID()
 	if err != nil {
@@ -79,6 +81,7 @@ func (n *Node) bootstrapStore() uint64 {
 	log.Infof("bootstrap: alloc store id succ, id=<%d>", storeID)
 
 	count := 0
+
 	err = n.driver.GetEngine().Scan(raftstore.GetMinKey(), raftstore.GetMaxKey(), func([]byte, []byte) (bool, error) {
 		count++
 		return false, nil
@@ -152,8 +155,7 @@ func (n *Node) createCell(start, end []byte) metapb.Cell {
 	}
 
 	log.Infof("bootstrap: alloc peer id for first cell succ, peerID=<%d> cellID=<%d>",
-		peerID,
-		cellID)
+		peerID, cellID)
 
 	cell := pb.NewCell(cellID, peerID, n.storeMeta.ID)
 	cell.Start = start
@@ -168,6 +170,8 @@ func (n *Node) createCell(start, end []byte) metapb.Cell {
 
 	return cell
 }
+
+
 
 func (n *Node) bootstrapCluster(cells []metapb.Cell) {
 	req := &pdpb.BootstrapClusterReq{
@@ -186,8 +190,7 @@ func (n *Node) bootstrapCluster(cells []metapb.Cell) {
 		}
 
 		log.Fatalf("bootstrap: bootstrap cluster failure, req=<%v> errors:\n %+v",
-			req,
-			err)
+			req, err)
 	} else if err == nil && rsp.GetAlreadyBootstrapped() {
 		log.Info("bootstrap: the cluster is already bootstrapped")
 	}

@@ -272,6 +272,7 @@ func (s *Store) validateStoreID(req *raftcmdpb.RaftCMDRequest) error {
 	return nil
 }
 
+// 检查peer是否存在，检查是否是leader
 func (s *Store) validateCell(req *raftcmdpb.RaftCMDRequest) *errorpb.Error {
 	cellID := req.Header.CellId
 	peerID := req.Header.Peer.ID
@@ -304,6 +305,7 @@ func (s *Store) validateCell(req *raftcmdpb.RaftCMDRequest) *errorpb.Error {
 		}
 	}
 
+	// TODO  ???
 	// If header's term is 2 verions behind current term,
 	// leadership may have been changed away.
 	if req.Header.Term > 0 && pr.getCurrentTerm() > req.Header.Term+1 {

@@ -118,6 +118,7 @@ func (s *Store) getIndexer(cellID uint64) (idxer *indexer.Indexer, err error) {
 	return
 }
 
+// TODO ???
 func (s *Store) _HandleIndicesChange(rspIndices []*pdpb.IndexDef) (err error) {
 	indicesNew := make(map[string]*pdpb.IndexDef)
 	for _, idxDefNew := range rspIndices {

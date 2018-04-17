@@ -255,6 +255,8 @@ func (d *applyDelegate) doExecChangePeer(ctx *applyContext) (*raftcmdpb.RaftCMDR
 	return resp, result, nil
 }
 
+
+// 执行分裂操作
 func (d *applyDelegate) doExecSplit(ctx *applyContext) (*raftcmdpb.RaftCMDResponse, *execResult, error) {
 	ctx.metrics.admin.split++
 

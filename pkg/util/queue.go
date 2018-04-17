@@ -36,6 +36,7 @@ var (
 
 type waiters []*sema
 
+// 获取并移除第一个元素
 func (w *waiters) get() *sema {
 	if len(*w) == 0 {
 		return nil
@@ -69,6 +70,7 @@ func (w *waiters) remove(sema *sema) {
 
 type items []interface{}
 
+// 获取并移除前number个元素，返回的是实际获取到的元素数量
 func (items *items) get(number int64, returnItems []interface{}) int64 {
 	index := int64(0)
 	for i := int64(0); i < number; i++ {
@@ -86,6 +88,7 @@ func (items *items) get(number int64, returnItems []interface{}) int64 {
 	return index
 }
 
+// 获取但不移除元素
 func (items *items) peek() (interface{}, bool) {
 	length := len(*items)
 
@@ -96,6 +99,7 @@ func (items *items) peek() (interface{}, bool) {
 	return (*items)[0], true
 }
 
+// 信号量
 type sema struct {
 	ready    chan bool
 	response *sync.WaitGroup
@@ -136,8 +140,11 @@ func (q *Queue) Put(items ...interface{}) error {
 		if sema == nil {
 			break
 		}
+
 		sema.response.Add(1)
 		select {
+
+		// 通知第一个等待的消费者已经可以开始消费，并等待其消费完成，之后如果还有元素剩余再通知下一个消费者
 		case sema.ready <- true:
 			sema.response.Wait()
 		default:
@@ -163,7 +170,7 @@ func (q *Queue) PutOrUpdate(cmp func(interface{}, interface{}) bool, item interf
 
 	i := 0
 	pos := -1
-	for _, old := range q.items {
+	for _, old := range q.items { // 检查元素是否存在
 		if cmp(old, item) {
 			pos = i
 			break
@@ -213,7 +220,6 @@ func (q *Queue) Get(number int64, items []interface{}) (int64, error) {
 // until items are added.  If a timeout occurs, ErrTimeout is returned.
 func (q *Queue) Poll(number int64, items []interface{}, timeout time.Duration) (int64, error) {
 	if number < 1 {
-		// thanks again go
 		return 0, nil
 	}
 
@@ -233,6 +239,7 @@ func (q *Queue) Poll(number int64, items []interface{}, timeout time.Duration) (
 		if timeout > 0 {
 			timeoutC = time.After(timeout)
 		}
+
 		select {
 		case <-sema.ready:
 			// we are now inside the put's lock
@@ -251,7 +258,7 @@ func (q *Queue) Poll(number int64, items []interface{}, timeout time.Duration) (
 				q.lock.Lock()
 				q.waiters.remove(sema)
 				q.lock.Unlock()
-			default:
+			default: // TODO ???
 				// Put() got it already, we need to call Done() so Put() can move on
 				sema.response.Done()
 			}
